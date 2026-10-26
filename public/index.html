@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PlanoAula</title>
+<meta name="theme-color" content="#1f4e79">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="boot" class="center">Carregando…</div>
+
+<main id="auth" class="card narrow" hidden>
+  <img src="icons/icon-192.png" alt="" class="logo">
+  <h1>PlanoAula</h1>
+  <p class="muted">Planos de aula a partir dos Guias Priorizados e do seu modelo. <b>Teste grátis por 7 dias</b>, sem cartão.</p>
+  <form id="authForm">
+    <label id="nameRow">Seu nome <input id="fullName" autocomplete="name"></label>
+    <label>E-mail <input id="email" type="email" required autocomplete="email"></label>
+    <label>Senha <input id="password" type="password" required minlength="6" autocomplete="current-password"></label>
+    <button class="btn" id="authBtn" type="submit">Começar teste grátis</button>
+  </form>
+  <p class="msg" id="authMsg" role="status"></p>
+  <p class="muted small"><a href="#" id="toggleAuth">Já tenho conta – entrar</a></p>
+</main>
+
+<main id="paywall" class="wrap" hidden>
+  <header class="top"><b>PlanoAula</b><button class="link" id="logout1">Sair</button></header>
+  <section class="card">
+    <h2>Seu teste grátis terminou</h2>
+    <p class="muted">Para continuar criando planos, escolha uma assinatura. Seus planos já criados continuam salvos.</p>
+    <div class="plans">
+      <div class="plan"><h3>Mensal</h3><p class="price">R$ <span id="pm"></span><small>/mês</small></p><button class="btn" data-plan="monthly">Assinar mensal</button></div>
+      <div class="plan best"><span class="tag">Melhor valor</span><h3>Anual</h3><p class="price">R$ <span id="pa"></span><small>/ano</small></p><button class="btn" data-plan="annual">Assinar anual</button></div>
+    </div>
+    <p class="muted small">Pagamento seguro pelo Mercado Pago. Cancele quando quiser.</p>
+    <p class="msg" id="payMsg" role="status"></p>
+  </section>
+</main>
+
+<main id="app" class="wrap" hidden>
+  <header class="top">
+    <b>PlanoAula</b>
+    <nav id="tabs">
+      <button data-tab="gerar" class="on">Gerar plano</button>
+      <button data-tab="meus">Meus planos</button>
+      <button data-tab="modelo">Meu modelo</button>
+      <button data-tab="admin" id="adminTab" hidden>Guias (admin)</button>
+    </nav>
+    <button class="link" id="logout2">Sair</button>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+
+  <section id="tab-gerar" class="card">
+    <h2>Novo plano de aula</h2>
+    <form id="genForm" class="grid">
+      <label>Professor(a) <input id="g_prof" required></label>
+      <label>Componente <input id="g_comp" placeholder="Ex.: História" required></label>
+      <label>Ano/série <input id="g_serie" placeholder="Ex.: 3ª série (EM)" required></label>
+      <label>Turma <input id="g_turma" placeholder="Ex.: 3º ADM"></label>
+      <label>Bimestre <select id="g_bim"><option value="">—</option><option>1</option><option>2</option><option>3</option><option selected>4</option></select></label>
+      <label>Período <input id="g_per" placeholder="Ex.: 19/10 a 30/10" required></label>
+      <label class="full">Aulas (dias e nº da aula) <input id="g_aulas" placeholder="Ex.: terça 4ª aula; quinta 2ª aula"></label>
+      <label class="full">Observações <textarea id="g_obs" rows="2" placeholder="Ex.: começar pela Aula 1 do 4º bimestre"></textarea></label>
+      <div class="full"><button class="btn" id="genBtn" type="submit">Gerar plano</button> <span id="genMsg" class="msg" role="status"></span></div>
+    </form>
+    <p class="muted small">O plano segue a estrutura do seu modelo (aba “Meu modelo”) e usa os Guias Priorizados carregados no sistema.</p>
+  </section>
+
+  <section id="tab-meus" class="card" hidden><h2>Meus planos</h2><div id="list"></div></section>
+
+  <section id="tab-modelo" class="card" hidden>
+    <h2>Meu modelo de plano</h2>
+    <p class="muted">Cole aqui a estrutura do seu plano (campos e seções) ou envie um arquivo <b>.txt, .docx ou .pdf</b> com o modelo. Ele é usado em todos os planos.</p>
+    <label>Cabeçalho do documento (opcional, uma linha por texto)<textarea id="m_head" rows="3" placeholder="GOVERNO DO ESTADO DE SÃO PAULO&#10;E. E. NOME DA ESCOLA"></textarea></label>
+    <label>Arquivo do modelo <input type="file" id="m_file" accept=".txt,.md,.docx,.pdf"></label>
+    <label>Texto do modelo <textarea id="m_text" rows="12"></textarea></label>
+    <button class="btn" id="m_save">Salvar modelo</button> <span id="m_msg" class="msg" role="status"></span>
+  </section>
+
+  <section id="tab-admin" class="card" hidden>
+    <h2>Guias Priorizados (administrador)</h2>
+    <p class="muted">Envie os guias (.pdf, .docx ou .txt). O texto é extraído e guardado no banco; os usuários nunca leem os guias diretamente.</p>
+    <div class="grid">
+      <label>Componente <input id="a_comp" placeholder="Ex.: História"></label>
+      <label>Ano/série <input id="a_serie" placeholder="Ex.: 3ª série (EM)"></label>
+      <label>Bimestre <select id="a_bim"><option value="">todos</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+      <label>Arquivo <input type="file" id="a_file" accept=".txt,.md,.docx,.pdf"></label>
+      <div class="full"><button class="btn" id="a_add">Adicionar guia</button> <span id="a_msg" class="msg" role="status"></span></div>
+    </div>
+    <div id="a_list"></div>
+  </section>
+
+  <section id="result" class="card" hidden>
+    <div class="row noprint"><h2 id="r_title">Plano</h2><span><button class="btn" id="r_print">Salvar PDF / Imprimir</button> <button class="btn ghost" id="r_copy">Copiar texto</button> <button class="link" id="r_close">Fechar</button></span></div>
+    <div id="planDoc" class="doc"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
