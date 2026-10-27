@@ -38,7 +38,7 @@ async function enter() {
 $("toggleAuth").onclick = (e) => { e.preventDefault(); signup = !signup; $("nameRow").hidden = !signup; $("authBtn").textContent = signup ? "Começar teste grátis" : "Entrar"; $("toggleAuth").textContent = signup ? "Já tenho conta – entrar" : "Criar conta (teste grátis)"; $("password").autocomplete = signup ? "new-password" : "current-password"; msg($("authMsg"), ""); };
 $("authForm").onsubmit = async (e) => {
   e.preventDefault(); const em = $("email").value.trim(), pw = $("password").value; msg($("authMsg"), "Aguarde…");
-  const r = signup ? await sb.auth.signUp({ email: em, password: pw, options: { data: { full_name: $("fullName").value.trim() } } }) : await sb.auth.signInWithPassword({ email: em, password: pw });
+  const r = signup ? await sb.auth.signUp({ email: em, password: pw, options: { emailRedirectTo: location.origin, data: { full_name: $("fullName").value.trim() } } }) : await sb.auth.signInWithPassword({ email: em, password: pw });
   if (r.error) return msg($("authMsg"), r.error.message.includes("Invalid login") ? "E-mail ou senha incorretos." : r.error.message, "err");
   if (!r.data.session) return msg($("authMsg"), "Conta criada! Confirme o e-mail que enviamos e entre em seguida.", "ok");
   msg($("authMsg"), ""); await enter();
