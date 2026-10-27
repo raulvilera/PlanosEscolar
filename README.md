@@ -31,3 +31,8 @@ Aplicativo instalável (PWA) que gera planos de aula a partir dos Guias Prioriza
 - Cobrança de assinatura tem obrigações legais (CNPJ/MEI, termos de uso, política de privacidade, cancelamento fácil).
 - Os Guias Priorizados são material da SEDUC-SP: confirme se podem ser distribuídos em produto pago.
 - Custo da IA é seu: há limite diário por usuário (`DAILY_LIMIT`, padrão 40 planos/24h).
+
+## Agentes e memória (migração 002)
+`generate-plan` executa um pipeline: (1) agente leitor do guia (resume e guarda em cache o Escopo-Sequência), (2) planejador (calcula as datas reais das aulas e continua a sequência a partir do último plano), (3) redator (preenche o modelo do professor) e (4) verificador (códigos de habilidade que não estão no guia e datas).
+`run-routines` roda todo dia (pg_cron) e gera sozinho o próximo plano das rotinas ativas, alguns dias antes de o período começar.
+Segredos novos: `CRON_SECRET` (qualquer texto longo; o mesmo no agendamento). `mp-webhook`, `generate-plan` e `run-routines`: Verify JWT desligado.

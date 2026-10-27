@@ -46,7 +46,8 @@
     <b>PlanoAula</b>
     <nav id="tabs">
       <button data-tab="gerar" class="on">Gerar plano</button>
-      <button data-tab="meus">Meus planos</button>
+      <button data-tab="meus">Meus planos <span id="newBadge" class="badge" hidden></span></button>
+      <button data-tab="rotinas">Rotinas</button>
       <button data-tab="modelo">Meu modelo</button>
       <button data-tab="admin" id="adminTab" hidden>Guias (admin)</button>
     </nav>
@@ -59,18 +60,26 @@
     <form id="genForm" class="grid">
       <label>Professor(a) <input id="g_prof" required></label>
       <label>Componente <input id="g_comp" placeholder="Ex.: História" required></label>
-      <label>Ano/série <input id="g_serie" placeholder="Ex.: 3ª série (EM)" required></label>
+      <label>Ano/série <input id="g_serie" placeholder="Ex.: 3ª série" required></label>
       <label>Turma <input id="g_turma" placeholder="Ex.: 3º ADM"></label>
       <label>Bimestre <select id="g_bim"><option value="">—</option><option>1</option><option>2</option><option>3</option><option selected>4</option></select></label>
-      <label>Período <input id="g_per" placeholder="Ex.: 19/10 a 30/10" required></label>
-      <label class="full">Aulas (dias e nº da aula) <input id="g_aulas" placeholder="Ex.: terça 4ª aula; quinta 2ª aula"></label>
-      <label class="full">Observações <textarea id="g_obs" rows="2" placeholder="Ex.: começar pela Aula 1 do 4º bimestre"></textarea></label>
+      <label>Repetir automaticamente
+        <select id="g_per"><option value="">Só este plano</option><option value="semanal">Toda semana</option><option value="quinzenal">A cada quinzena</option><option value="mensal">Todo mês</option></select></label>
+      <label>Período – início <input id="g_ini" type="date" required></label>
+      <label>Período – fim <input id="g_fim" type="date" required></label>
+      <div class="full"><b class="lbl">Dias da semana e nº da aula</b>
+        <div id="g_dias"></div>
+        <button type="button" class="btn ghost" id="g_addDia">+ Adicionar dia/aula</button></div>
+      <label class="full">Dias sem aula neste período (opcional, ex.: 28/10, 02/11) <input id="g_sem" placeholder="28/10, 02/11"></label>
+      <label class="full">Observações <textarea id="g_obs" rows="2" placeholder="Ex.: reforçar habilidades da Prova Paulista"></textarea></label>
       <div class="full"><button class="btn" id="genBtn" type="submit">Gerar plano</button> <span id="genMsg" class="msg" role="status"></span></div>
     </form>
-    <p class="muted small">O plano segue a estrutura do seu modelo (aba “Meu modelo”) e usa os Guias Priorizados carregados no sistema.</p>
+    <p class="muted small">O app lembra o que já foi trabalhado: o próximo plano continua a sequência do guia, sem você consultar o plano anterior. Com “Repetir automaticamente”, os próximos planos são gerados sozinhos e aparecem em “Meus planos”. O plano segue a estrutura do seu modelo (aba “Meu modelo”) e usa os Guias Priorizados carregados no sistema.</p>
   </section>
 
   <section id="tab-meus" class="card" hidden><h2>Meus planos</h2><div id="list"></div></section>
+
+  <section id="tab-rotinas" class="card" hidden><h2>Rotinas automáticas</h2><p class="muted">Cada rotina gera o próximo plano sozinha, alguns dias antes do período começar, continuando a sequência do guia.</p><div id="r_list"></div></section>
 
   <section id="tab-modelo" class="card" hidden>
     <h2>Meu modelo de plano</h2>
@@ -95,7 +104,7 @@
   </section>
 
   <section id="result" class="card" hidden>
-    <div class="row noprint"><h2 id="r_title">Plano</h2><span><button class="btn" id="r_print">Salvar PDF / Imprimir</button> <button class="btn ghost" id="r_copy">Copiar texto</button> <button class="link" id="r_close">Fechar</button></span></div>
+    <div class="row noprint"><h2 id="r_title">Plano</h2><span><button class="btn" id="r_pdf">Baixar PDF</button> <button class="btn ghost" id="r_print">Imprimir</button> <button class="btn ghost" id="r_copy">Copiar texto</button> <button class="link" id="r_close">Fechar</button></span></div>
     <div id="planDoc" class="doc"></div>
   </section>
 </main>
@@ -103,6 +112,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" defer></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>

@@ -31,7 +31,7 @@ async function enter() {
   if (access.state === "trial") { b.className = "banner"; b.textContent = `Teste grátis: ${access.days_left} dia(s) restante(s). Depois, assine o plano mensal ou anual para continuar.`; }
   else { b.className = "banner ok"; b.textContent = `Assinatura ${access.plan === "annual" ? "anual" : "mensal"} ativa.`; }
   $("m_text").value = profile.model_text || ""; $("m_head").value = lsGet("pa_head");
-  $("g_prof").value = lsGet("pa_prof") || profile.full_name || "";
+  $("g_prof").value = lsGet("pa_prof") || profile.full_name || ""; loadForm(); refreshBadge();
 }
 
 // ---------- autenticação
@@ -50,9 +50,9 @@ $("logout1").onclick = out; $("logout2").onclick = out;
 $("tabs").onclick = async (e) => {
   const t = e.target.dataset?.tab; if (!t) return;
   for (const b of $("tabs").children) b.classList.toggle("on", b.dataset.tab === t);
-  for (const x of ["gerar", "meus", "modelo", "admin"]) $("tab-" + x).hidden = x !== t;
+  for (const x of ["gerar", "meus", "rotinas", "modelo", "admin"]) $("tab-" + x).hidden = x !== t;
   $("result").hidden = true;
-  if (t === "meus") loadPlans(); if (t === "admin") loadGuides();
+  if (t === "meus") loadPlans(); if (t === "rotinas") loadRoutines(); if (t === "admin") loadGuides();
 };
 
 // ---------- pagamento
@@ -86,11 +86,45 @@ $("m_save").onclick = async () => {
   profile.model_text = $("m_text").value; msg($("m_msg"), error ? "Não foi possível salvar." : "Modelo salvo.", error ? "err" : "ok");
 };
 
-// ---------- gerar plano
+// ---------- gerar plano (agentes no servidor) ----------
+const DOWN = ["", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+function addDiaRow(dow = 1, aula = 1) {
+  const r = document.createElement("div"); r.className = "diaRow";
+  r.innerHTML = `<select class="d_dow">${DOWN.map((n, i) => i ? `<option value="${i}" ${i === dow ? "selected" : ""}>${n}</option>` : "").join("")}</select>
+    <select class="d_aula">${[1, 2, 3, 4, 5, 6, 7, 8].map((n) => `<option value="${n}" ${n === aula ? "selected" : ""}>${n}ª aula</option>`).join("")}</select>
+    <button type="button" class="link">remover</button>`;
+  r.querySelector("button").onclick = () => { if ($("g_dias").children.length > 1) r.remove(); };
+  $("g_dias").appendChild(r);
+}
+$("g_addDia").onclick = () => addDiaRow();
+function readDias() { return [...$("g_dias").children].map((r) => ({ dow: Number(r.querySelector(".d_dow").value), aula: Number(r.querySelector(".d_aula").value) })); }
+function parseSem(txt, ini) {
+  const y = ini.slice(0, 4);
+  return txt.split(/[,;\s]+/).map((t) => t.trim()).filter(Boolean).map((t) => { const m = t.match(/^(\d{1,2})\/(\d{1,2})$/); return m ? `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : null; }).filter(Boolean);
+}
+function addDays(iso, n) { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function nextPeriod(per, fim) {
+  const start = addDays(fim, 1);
+  if (per === "semanal") return { start, end: addDays(start, 6) };
+  if (per === "quinzenal") return { start, end: addDays(start, 13) };
+  const d = new Date(start + "T12:00:00Z"); d.setUTCMonth(d.getUTCMonth() + 1); d.setUTCDate(d.getUTCDate() - 1);
+  return { start, end: d.toISOString().slice(0, 10) };
+}
+// memória do formulário (o professor não precisa preencher tudo de novo)
+function saveForm() { lsSet("pa_form", JSON.stringify({ comp: $("g_comp").value, serie: $("g_serie").value, turma: $("g_turma").value, bim: $("g_bim").value, per: $("g_per").value, dias: readDias() })); }
+function loadForm() {
+  let f = {}; try { f = JSON.parse(lsGet("pa_form") || "{}"); } catch {}
+  $("g_comp").value = f.comp || ""; $("g_serie").value = f.serie || ""; $("g_turma").value = f.turma || ""; if (f.bim) $("g_bim").value = f.bim; $("g_per").value = f.per || "";
+  $("g_dias").innerHTML = ""; (f.dias?.length ? f.dias : [{ dow: 1, aula: 1 }]).forEach((d) => addDiaRow(d.dow, d.aula));
+  const t = new Date(); $("g_ini").value = $("g_ini").value || t.toISOString().slice(0, 10); $("g_fim").value = $("g_fim").value || addDays(t.toISOString().slice(0, 10), 13);
+}
+
 $("genForm").onsubmit = async (e) => {
-  e.preventDefault(); $("genBtn").disabled = true; msg($("genMsg"), "Gerando… pode levar até 1 minuto.");
-  lsSet("pa_prof", $("g_prof").value);
-  const body = { professor: $("g_prof").value, componente: $("g_comp").value, serie: $("g_serie").value, turma: $("g_turma").value, bimestre: $("g_bim").value, periodo: $("g_per").value, aulas: $("g_aulas").value, observacoes: $("g_obs").value, modelo: profile.model_text || "" };
+  e.preventDefault(); $("genBtn").disabled = true; msg($("genMsg"), "Os agentes estão lendo o guia e montando o plano… pode levar até 1 minuto.");
+  lsSet("pa_prof", $("g_prof").value); saveForm();
+  const ini = $("g_ini").value, fim = $("g_fim").value;
+  if (fim < ini) { $("genBtn").disabled = false; return msg($("genMsg"), "O fim do período é anterior ao início.", "err"); }
+  const body = { professor: $("g_prof").value, componente: $("g_comp").value, serie: $("g_serie").value, turma: $("g_turma").value, bimestre: $("g_bim").value, inicio: ini, fim, dias: readDias(), sem_aula: parseSem($("g_sem").value, ini), observacoes: $("g_obs").value, modelo: profile.model_text || "" };
   const { data, error } = await sb.functions.invoke("generate-plan", { body });
   $("genBtn").disabled = false;
   if (error) {
@@ -98,7 +132,16 @@ $("genForm").onsubmit = async (e) => {
     if (d?.code === "payment_required") { await enter(); return; }
     return msg($("genMsg"), d?.error || "Não foi possível gerar o plano.", "err");
   }
-  msg($("genMsg"), "Plano pronto.", "ok"); showPlan(data.title, data.plan);
+  let extra = "";
+  const per = $("g_per").value;
+  if (per) { // memoriza a configuração: os próximos planos saem sozinhos
+    const np = nextPeriod(per, fim), uid = (await sb.auth.getUser()).data.user.id;
+    const dup = await sb.from("pa_routines").select("id").eq("componente", body.componente.trim()).eq("serie", body.serie.trim()).eq("active", true).maybeSingle();
+    if (dup.data?.id) await sb.from("pa_routines").delete().eq("id", dup.data.id); // uma rotina por disciplina/série
+    const { error: e2 } = await sb.from("pa_routines").insert({ user_id: uid, componente: body.componente.trim(), serie: body.serie.trim(), turma: body.turma.trim() || null, bimestre: body.bimestre ? Number(body.bimestre) : null, professor: body.professor, dias: body.dias, sem_aula: [], periodicidade: per, next_start: np.start, next_end: np.end });
+    extra = e2 ? " (não foi possível criar a repetição automática)" : " Rotina criada: o próximo plano será gerado automaticamente.";
+  }
+  msg($("genMsg"), ("Plano pronto. " + (data.continuacao || "") + extra).trim(), "ok"); showPlan(data.title, data.plan);
 };
 
 function showPlan(title, p) {
@@ -113,20 +156,43 @@ function showPlan(title, p) {
   $("result").scrollIntoView({ behavior: "smooth" });
 }
 $("r_print").onclick = () => print();
+$("r_pdf").onclick = () => {
+  const name = ($("r_title").textContent || "plano").replace(/[^\p{L}\p{N}]+/gu, "_") + ".pdf";
+  if (window.html2pdf) html2pdf().set({ margin: [12, 14], filename: name, image: { type: "jpeg", quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: "mm", format: "a4" }, pagebreak: { mode: ["css", "legacy"] } }).from($("planDoc")).save();
+  else print();
+};
 $("r_close").onclick = () => { $("result").hidden = true; };
 $("r_copy").onclick = async () => { try { await navigator.clipboard.writeText($("planDoc").innerText); $("r_copy").textContent = "Copiado!"; setTimeout(() => $("r_copy").textContent = "Copiar texto", 1500); } catch {} };
 
 // ---------- meus planos
 async function loadPlans() {
-  const { data } = await sb.from("pa_plans").select("id,title,created_at,content").order("created_at", { ascending: false }).limit(100);
+  const { data } = await sb.from("pa_plans").select("id,title,created_at,content,auto,seen").order("created_at", { ascending: false }).limit(100);
   const L = $("list"); L.innerHTML = data?.length ? "" : '<p class="muted">Nenhum plano ainda.</p>';
   for (const r of data || []) {
     const d = document.createElement("div"); d.className = "item";
-    d.innerHTML = `<span><b>${esc(r.title)}</b><br><small class="muted">${new Date(r.created_at).toLocaleString("pt-BR")}</small></span><span><button class="btn ghost" data-o="1">Abrir</button> <button class="link" data-d="1">Excluir</button></span>`;
-    d.querySelector("[data-o]").onclick = () => showPlan(r.title, r.content);
+    d.innerHTML = `<span><b>${esc(r.title)}</b>${r.auto && !r.seen ? ' <span class="badge">novo · automático</span>' : ""}<br><small class="muted">${new Date(r.created_at).toLocaleString("pt-BR")}</small></span><span><button class="btn ghost" data-o="1">Abrir</button> <button class="link" data-d="1">Excluir</button></span>`;
+    d.querySelector("[data-o]").onclick = async () => { showPlan(r.title, r.content); if (!r.seen) { await sb.from("pa_plans").update({ seen: true }).eq("id", r.id); refreshBadge(); } };
     d.querySelector("[data-d]").onclick = async () => { if (confirm("Excluir este plano?")) { await sb.from("pa_plans").delete().eq("id", r.id); loadPlans(); } };
     L.appendChild(d);
   }
+}
+
+// ---------- rotinas automáticas ----------
+const fmt = (iso) => iso.slice(8, 10) + "/" + iso.slice(5, 7);
+async function loadRoutines() {
+  const { data } = await sb.from("pa_routines").select("*").order("id", { ascending: false });
+  const L = $("r_list"); L.innerHTML = data?.length ? "" : '<p class="muted">Nenhuma rotina. Ao gerar um plano, escolha “Repetir automaticamente”.</p>';
+  for (const r of data || []) {
+    const d = document.createElement("div"); d.className = "item";
+    d.innerHTML = `<span><b>${esc(r.componente)} – ${esc(r.serie)}${r.turma ? " " + esc(r.turma) : ""}</b> · ${esc(r.periodicidade)}<br><small class="muted">Próximo plano: ${fmt(r.next_start)} a ${fmt(r.next_end)} · ${r.active ? "ativa" : "pausada"}${r.last_error ? " · erro na última tentativa" : ""}</small></span><span><button class="btn ghost" data-t="1">${r.active ? "Pausar" : "Ativar"}</button> <button class="link" data-d="1">Excluir</button></span>`;
+    d.querySelector("[data-t]").onclick = async () => { await sb.from("pa_routines").update({ active: !r.active }).eq("id", r.id); loadRoutines(); };
+    d.querySelector("[data-d]").onclick = async () => { if (confirm("Excluir esta rotina?")) { await sb.from("pa_routines").delete().eq("id", r.id); loadRoutines(); } };
+    L.appendChild(d);
+  }
+}
+async function refreshBadge() {
+  const { count } = await sb.from("pa_plans").select("id", { count: "exact", head: true }).eq("auto", true).eq("seen", false);
+  const b = $("newBadge"); b.hidden = !count; b.textContent = count || "";
 }
 
 // ---------- guias (admin)
